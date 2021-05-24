@@ -14,9 +14,12 @@
 """Train found model on datasets."""
 
 import argparse
+import glob
 import logging
 import os
 import sys
+import time
+
 sys.path.append('../')
 
 from apex.parallel import DistributedDataParallel as DDP
@@ -86,7 +89,6 @@ parser.add_argument('--gpu', type=int, default=0,
 # DDP.
 parser.add_argument('--local_rank', type=int, default=0,
                     help='rank of process')
-
 args = parser.parse_args()
 
 from darts.genotypes import set_primitives
@@ -95,6 +97,7 @@ from util import utils
 from darts.model import Network
 
 # Set up DDP.
+os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 args.distributed = True
 torch.cuda.set_device(args.local_rank)
 torch.distributed.init_process_group(backend='nccl', init_method='env://')
@@ -102,9 +105,9 @@ args.world_size = torch.distributed.get_world_size()
 
 # Set up logging.
 assert args.root_dir
-args.save = args.root_dir + '/eval-{}'.format(args.save)
+args.save = args.root_dir + '/eval-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
 if args.local_rank == 0:
-    utils.create_exp_dir(args.save)
+    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 logging = utils.Logger(args.local_rank, args.save)
 writer = utils.Writer(args.local_rank, args.save)
 
